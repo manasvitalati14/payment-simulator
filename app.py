@@ -5,14 +5,21 @@ from models import User, Transaction
 from forms import RegistrationForm, LoginForm
 from flask_login import login_user, current_user, logout_user, login_required
 import random
+import os
 
+# Initialize Flask App
 app = Flask(__name__)
 app.config.from_object(Config)
 
-db.init_app(app)
-bcrypt.init_app(app)
-login_manager.init_app(app)
+# Initialize Extensions
+try:
+    db.init_app(app)
+    bcrypt.init_app(app)
+    login_manager.init_app(app)
+except Exception as e:
+    print(f"Error initializing extensions: {e}")
 
+# Routes
 @app.route("/", methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -57,8 +64,11 @@ def logout():
 
 @app.route("/setup")
 def setup():
-    db.create_all()
-    return "Database tables created successfully!"
+    try:
+        db.create_all()
+        return "Database tables created successfully!"
+    except Exception as e:
+        return f"Error creating tables: {e}"
 
 @app.route("/api/verify_user", methods=['POST'])
 @login_required
@@ -132,6 +142,11 @@ def pay():
 def history():
     transactions = Transaction.query.filter((Transaction.sender_id == current_user.id) | (Transaction.receiver_id == current_user.id)).order_by(Transaction.timestamp.desc()).all()
     return render_template('history.html', transactions=transactions)
+
+# For Vercel specific error handling
+@app.errorhandler(500)
+def internal_error(error):
+    return f"500 Error: {error}", 500
 
 if __name__ == '__main__':
     with app.app_context():
